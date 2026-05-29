@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Living Dex — Let's Go Pikachu</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f5;
+      --surface: #fff;
+      --border: #e0e0e0;
+      --text: #1a1a1a;
+      --muted: #888;
+      --caught-bg: #e8f5e9;
+      --caught-border: #4caf50;
+      --caught-badge: #4caf50;
+      --font: system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    header h1 {
+      font-size: 1rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .progress-bar-wrap {
+      flex: 1;
+      min-width: 120px;
+      max-width: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .progress-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--caught-badge);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .filters {
+      display: flex;
+      gap: 0.4rem;
+      margin-left: auto;
+    }
+
+    .filter-btn {
+      padding: 0.3rem 0.75rem;
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      color: var(--text);
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .filter-btn.active {
+      background: var(--text);
+      color: #fff;
+      border-color: var(--text);
+    }
+
+    .search-wrap {
+      display: flex;
+      align-items: center;
+    }
+
+    #search {
+      padding: 0.3rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      font-size: 0.8rem;
+      outline: none;
+      width: 140px;
+      background: transparent;
+    }
+
+    #search:focus {
+      border-color: #999;
+    }
+
+    main {
+      padding: 1.25rem 1rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.5rem 0.25rem 0.4rem;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+      position: relative;
+    }
+
+    .card:hover {
+      border-color: #bbb;
+    }
+
+    .card.caught {
+      background: var(--caught-bg);
+      border-color: var(--caught-border);
+    }
+
+    .card.caught .check {
+      opacity: 1;
+    }
+
+    .check {
+      position: absolute;
+      top: 4px;
+      right: 5px;
+      font-size: 0.65rem;
+      color: var(--caught-badge);
+      opacity: 0;
+      line-height: 1;
+    }
+
+    .card img {
+      width: 56px;
+      height: 56px;
+      image-rendering: pixelated;
+    }
+
+    .card.not-caught img {
+      filter: grayscale(1) opacity(0.35);
+    }
+
+    .card-num {
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .card-name {
+      font-size: 0.65rem;
+      text-align: center;
+      font-weight: 500;
+      line-height: 1.2;
+      margin-top: 1px;
+    }
+
+    .card.not-caught .card-name,
+    .card.not-caught .card-num {
+      color: var(--muted);
+    }
+
+    .empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 3rem 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Living Dex — Let's Go Pikachu</h1>
+  <div class="progress-bar-wrap">
+    <div class="progress-label" id="progress-label">0 / 153</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+  <div class="search-wrap">
+    <input id="search" type="search" placeholder="Search…" autocomplete="off">
+  </div>
+  <div class="filters">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="caught">Caught</button>
+    <button class="filter-btn" data-filter="missing">Missing</button>
+  </div>
+</header>
+
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script>
+const POKEMON = [
+  [1,'Bulbasaur'],[2,'Ivysaur'],[3,'Venusaur'],[4,'Charmander'],[5,'Charmeleon'],
+  [6,'Charizard'],[7,'Squirtle'],[8,'Wartortle'],[9,'Blastoise'],[10,'Caterpie'],
+  [11,'Metapod'],[12,'Butterfree'],[13,'Weedle'],[14,'Kakuna'],[15,'Beedrill'],
+  [16,'Pidgey'],[17,'Pidgeotto'],[18,'Pidgeot'],[19,'Rattata'],[20,'Raticate'],
+  [21,'Spearow'],[22,'Fearow'],[23,'Ekans'],[24,'Arbok'],[25,'Pikachu'],
+  [26,'Raichu'],[27,'Sandshrew'],[28,'Sandslash'],[29,'Nidoran♀'],[30,'Nidorina'],
+  [31,'Nidoqueen'],[32,'Nidoran♂'],[33,'Nidorino'],[34,'Nidoking'],[35,'Clefairy'],
+  [36,'Clefable'],[37,'Vulpix'],[38,'Ninetales'],[39,'Jigglypuff'],[40,'Wigglytuff'],
+  [41,'Zubat'],[42,'Golbat'],[43,'Oddish'],[44,'Gloom'],[45,'Vileplume'],
+  [46,'Paras'],[47,'Parasect'],[48,'Venonat'],[49,'Venomoth'],[50,'Diglett'],
+  [51,'Dugtrio'],[52,'Meowth'],[53,'Persian'],[54,'Psyduck'],[55,'Golduck'],
+  [56,'Mankey'],[57,'Primeape'],[58,'Growlithe'],[59,'Arcanine'],[60,'Poliwag'],
+  [61,'Poliwhirl'],[62,'Poliwrath'],[63,'Abra'],[64,'Kadabra'],[65,'Alakazam'],
+  [66,'Machop'],[67,'Machoke'],[68,'Machamp'],[69,'Bellsprout'],[70,'Weepinbell'],
+  [71,'Victreebel'],[72,'Tentacool'],[73,'Tentacruel'],[74,'Geodude'],[75,'Graveler'],
+  [76,'Golem'],[77,'Ponyta'],[78,'Rapidash'],[79,'Slowpoke'],[80,'Slowbro'],
+  [81,'Magnemite'],[82,'Magneton'],[83,"Farfetch'd"],[84,'Doduo'],[85,'Dodrio'],
+  [86,'Seel'],[87,'Dewgong'],[88,'Grimer'],[89,'Muk'],[90,'Shellder'],
+  [91,'Cloyster'],[92,'Gastly'],[93,'Haunter'],[94,'Gengar'],[95,'Onix'],
+  [96,'Drowzee'],[97,'Hypno'],[98,'Krabby'],[99,'Kingler'],[100,'Voltorb'],
+  [101,'Electrode'],[102,'Exeggcute'],[103,'Exeggutor'],[104,'Cubone'],[105,'Marowak'],
+  [106,'Hitmonlee'],[107,'Hitmonchan'],[108,'Lickitung'],[109,'Koffing'],[110,'Weezing'],
+  [111,'Rhyhorn'],[112,'Rhydon'],[113,'Chansey'],[114,'Tangela'],[115,'Kangaskhan'],
+  [116,'Horsea'],[117,'Seadra'],[118,'Goldeen'],[119,'Seaking'],[120,'Staryu'],
+  [121,'Starmie'],[122,'Mr. Mime'],[123,'Scyther'],[124,'Jynx'],[125,'Electabuzz'],
+  [126,'Magmar'],[127,'Pinsir'],[128,'Tauros'],[129,'Magikarp'],[130,'Gyarados'],
+  [131,'Lapras'],[132,'Ditto'],[133,'Eevee'],[134,'Vaporeon'],[135,'Jolteon'],
+  [136,'Flareon'],[137,'Porygon'],[138,'Omanyte'],[139,'Omastar'],[140,'Kabuto'],
+  [141,'Kabutops'],[142,'Aerodactyl'],[143,'Snorlax'],[144,'Articuno'],[145,'Zapdos'],
+  [146,'Moltres'],[147,'Dratini'],[148,'Dragonair'],[149,'Dragonite'],[150,'Mewtwo'],
+  [151,'Mew'],[808,'Meltan'],[809,'Melmetal'],
+];
+
+const STORAGE_KEY = 'lgp-living-dex';
+const SPRITE = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+
+let caught = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+let filter = 'all';
+let query = '';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...caught]));
+}
+
+function updateProgress() {
+  const total = POKEMON.length;
+  const n = caught.size;
+  document.getElementById('progress-label').textContent = `${n} / ${total}`;
+  document.getElementById('progress-fill').style.width = `${(n / total) * 100}%`;
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  const q = query.toLowerCase();
+
+  const visible = POKEMON.filter(([id, name]) => {
+    if (q && !name.toLowerCase().includes(q) && !String(id).includes(q)) return false;
+    if (filter === 'caught' && !caught.has(id)) return false;
+    if (filter === 'missing' && caught.has(id)) return false;
+    return true;
+  });
+
+  if (visible.length === 0) {
+    grid.innerHTML = '<div class="empty">No Pokémon match.</div>';
+    return;
+  }
+
+  grid.innerHTML = '';
+  for (const [id, name] of visible) {
+    const isCaught = caught.has(id);
+    const card = document.createElement('div');
+    card.className = `card ${isCaught ? 'caught' : 'not-caught'}`;
+    card.dataset.id = id;
+    card.innerHTML = `
+      <span class="check">✓</span>
+      <img src="${SPRITE(id)}" alt="${name}" loading="lazy">
+      <div class="card-num">#${String(id).padStart(3, '0')}</div>
+      <div class="card-name">${name}</div>
+    `;
+    card.addEventListener('click', () => toggle(id));
+    grid.appendChild(card);
+  }
+}
+
+function toggle(id) {
+  if (caught.has(id)) {
+    caught.delete(id);
+  } else {
+    caught.add(id);
+  }
+  save();
+  updateProgress();
+
+  const card = document.querySelector(`.card[data-id="${id}"]`);
+  if (!card) return;
+
+  if (filter !== 'all') {
+    card.remove();
+    const grid = document.getElementById('grid');
+    if (!grid.querySelector('.card')) {
+      grid.innerHTML = '<div class="empty">No Pokémon match.</div>';
+    }
+  } else {
+    const isCaught = caught.has(id);
+    card.className = `card ${isCaught ? 'caught' : 'not-caught'}`;
+  }
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    filter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  });
+});
+
+document.getElementById('search').addEventListener('input', e => {
+  query = e.target.value;
+  render();
+});
+
+updateProgress();
+render();
+</script>
+</body>
+</html>
