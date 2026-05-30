@@ -39,6 +39,9 @@
       flex-wrap: wrap;
     }
 
+    .back { font-size: 0.8rem; color: var(--muted); text-decoration: none; }
+    .back:hover { color: var(--text); }
+
     header h1 {
       font-size: 1rem;
       font-weight: 600;
@@ -205,13 +208,14 @@
 <body>
 
 <header>
-  <h1>Living Dex — Let's Go Pikachu</h1>
+  <a class="back" href="../">&#8592; Projects</a>
+  <h1>Living Dex &#8212; Let&#8217;s Go Pikachu</h1>
   <div class="progress-bar-wrap">
     <div class="progress-label" id="progress-label">0 / 153</div>
     <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
   </div>
   <div class="search-wrap">
-    <input id="search" type="search" placeholder="Search…" autocomplete="off">
+    <input id="search" type="search" placeholder="Search&#8230;" autocomplete="off">
   </div>
   <div class="filters">
     <button class="filter-btn active" data-filter="all">All</button>
