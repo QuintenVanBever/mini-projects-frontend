@@ -6,134 +6,46 @@
   <title>Projects</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #f5f5f5;
-      --surface: #fff;
-      --border: #e0e0e0;
-      --text: #1a1a1a;
-      --muted: #888;
+      --bg: #f5f5f5; --surface: #fff; --border: #e0e0e0;
+      --text: #1a1a1a; --muted: #888;
       --font: system-ui, -apple-system, sans-serif;
     }
-
-    body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem 1.5rem;
-    }
-
-    header h1 {
-      font-size: 1rem;
-      font-weight: 600;
-    }
-
-    main {
-      flex: 1;
-      padding: 2rem 1.5rem;
-      max-width: 800px;
-      width: 100%;
-      margin: 0 auto;
-    }
-
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; }
+    header h1 { font-size: 1rem; font-weight: 600; }
+    main { flex: 1; padding: 2rem 1.5rem; max-width: 800px; width: 100%; margin: 0 auto; }
     .section-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 0.75rem;
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.75rem;
     }
-
-    .projects {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
+    .projects { display: flex; flex-direction: column; gap: 0.5rem; }
     .project-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem 1.25rem;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 1rem 1.25rem; text-decoration: none; color: inherit;
+      display: flex; align-items: center; justify-content: space-between;
       transition: border-color 0.15s;
     }
-
-    .project-card:hover {
-      border-color: #bbb;
-    }
-
-    .project-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .project-name {
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .project-desc {
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-
-    .arrow {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
+    .project-card:hover { border-color: #bbb; }
+    .project-info { display: flex; flex-direction: column; gap: 2px; }
+    .project-name { font-size: 0.9rem; font-weight: 500; }
+    .project-desc { font-size: 0.75rem; color: var(--muted); }
+    .arrow { color: var(--muted); font-size: 0.9rem; }
   </style>
 </head>
 <body>
-
-<header>
-  <h1>Projects</h1>
-</header>
-
+<header><h1>Projects</h1></header>
 <main>
   <div class="section-label">All projects</div>
   <div class="projects">
-
-    <a class="project-card" href="pokemon-living-dex/">
+    <a class="project-card" href="pokemon-tracker/">
       <div class="project-info">
-        <span class="project-name">Living Dex Tracker</span>
-        <span class="project-desc">Let's Go Pikachu &#8212; 153 Pok&#233;mon, stored in local storage</span>
+        <span class="project-name">Pok&#233;dex Tracker</span>
+        <span class="project-desc">Let&#8217;s Go Pikachu &middot; BDSP Sinnoh &middot; Legends Z-A</span>
       </div>
       <span class="arrow">&#8594;</span>
     </a>
-
-    <a class="project-card" href="pokemon-bdsp/">
-      <div class="project-info">
-        <span class="project-name">Sinnoh Dex Tracker</span>
-        <span class="project-desc">Brilliant Diamond &amp; Shining Pearl &#8212; 151 Pok&#233;mon regional dex</span>
-      </div>
-      <span class="arrow">&#8594;</span>
-    </a>
-
-    <a class="project-card" href="pokemon-legends-za/">
-      <div class="project-info">
-        <span class="project-name">Lumiose Dex Tracker</span>
-        <span class="project-desc">Legends: Z-A + DLC &#8212; complete dex incl. regional &amp; alternate forms</span>
-      </div>
-      <span class="arrow">&#8594;</span>
-    </a>
-
   </div>
 </main>
-
 </body>
 </html>
