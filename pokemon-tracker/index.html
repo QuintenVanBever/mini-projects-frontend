@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pok&#233;dex Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f5f5; --surface: #fff; --border: #e0e0e0;
+      --text: #1a1a1a; --muted: #888;
+      --caught-bg: #e8f5e9; --caught-border: #4caf50; --caught-badge: #4caf50;
+      --font: system-ui, -apple-system, sans-serif;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem; position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    }
+    .back { font-size: 0.8rem; color: var(--muted); text-decoration: none; white-space: nowrap; }
+    .back:hover { color: var(--text); }
+    .dex-tabs { display: flex; gap: 0.35rem; }
+    .tab-btn {
+      padding: 0.35rem 0.85rem; border: 1px solid var(--border); background: transparent;
+      border-radius: 99px; font-size: 0.8rem; font-weight: 500; cursor: pointer; color: var(--text);
+      transition: background 0.15s, border-color 0.15s; white-space: nowrap;
+    }
+    .tab-btn:hover { border-color: #bbb; }
+    .tab-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+    .progress-bar-wrap { flex: 1; min-width: 100px; max-width: 220px; display: flex; flex-direction: column; gap: 3px; }
+    .progress-label { font-size: 0.75rem; color: var(--muted); }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--caught-badge); border-radius: 3px; transition: width 0.3s ease; }
+    .search-wrap { display: flex; align-items: center; }
+    #search {
+      padding: 0.3rem 0.75rem; border: 1px solid var(--border); border-radius: 99px;
+      font-size: 0.8rem; outline: none; width: 130px; background: transparent;
+    }
+    #search:focus { border-color: #999; }
+    .filters { display: flex; gap: 0.35rem; margin-left: auto; }
+    .filter-btn {
+      padding: 0.3rem 0.75rem; border: 1px solid var(--border); background: transparent;
+      border-radius: 99px; font-size: 0.8rem; cursor: pointer; color: var(--text);
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+    main { padding: 1.25rem 1rem; max-width: 1200px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.5rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 0.5rem 0.25rem 0.4rem; cursor: pointer; user-select: none;
+      transition: border-color 0.15s, background 0.15s; position: relative;
+    }
+    .card:hover { border-color: #bbb; }
+    .card.caught { background: var(--caught-bg); border-color: var(--caught-border); }
+    .card.caught .check { opacity: 1; }
+    .check { position: absolute; top: 4px; right: 5px; font-size: 0.65rem; color: var(--caught-badge); opacity: 0; }
+    .card img { width: 56px; height: 56px; image-rendering: pixelated; }
+    .card.not-caught img { filter: grayscale(1) opacity(0.35); }
+    .card-num { font-size: 0.6rem; color: var(--muted); margin-top: 2px; }
+    .card-name { font-size: 0.65rem; text-align: center; font-weight: 500; line-height: 1.2; margin-top: 1px; }
+    .card.not-caught .card-name, .card.not-caught .card-num { color: var(--muted); }
+    .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 0.9rem; padding: 3rem 0; }
+  </style>
+</head>
+<body>
+<header>
+  <a class="back" href="../">&#8592; Projects</a>
+  <div class="dex-tabs">
+    <button class="tab-btn" data-dex="lgp">Let&#8217;s Go Pikachu</button>
+    <button class="tab-btn" data-dex="bdsp">BDSP Sinnoh</button>
+    <button class="tab-btn" data-dex="lza">Legends Z-A</button>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-label" id="progress-label">0 / 0</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+  <div class="search-wrap">
+    <input id="search" type="search" placeholder="Search&#8230;" autocomplete="off">
+  </div>
+  <div class="filters">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="caught">Caught</button>
+    <button class="filter-btn" data-filter="missing">Missing</button>
+  </div>
+</header>
+<main><div class="grid" id="grid"></div></main>
+<script>
+// LGP/LZA entries: [key, name] or [key, name, displayNum]
+// BDSP entries:    [sinnohNum, nationalNum, name]
+const DEXES = {
+  lgp: {
+    storageKey: 'lgp-living-dex',
+    format: 'lgp',
+    pokemon: [
+      [1,'Bulbasaur'],[2,'Ivysaur'],[3,'Venusaur'],[4,'Charmander'],[5,'Charmeleon'],
+      [6,'Charizard'],[7,'Squirtle'],[8,'Wartortle'],[9,'Blastoise'],[10,'Caterpie'],
+      [11,'Metapod'],[12,'Butterfree'],[13,'Weedle'],[14,'Kakuna'],[15,'Beedrill'],
+      [16,'Pidgey'],[17,'Pidgeotto'],[18,'Pidgeot'],[19,'Rattata'],[20,'Raticate'],
+      [21,'Spearow'],[22,'Fearow'],[23,'Ekans'],[24,'Arbok'],[25,'Pikachu'],
+      [26,'Raichu'],[27,'Sandshrew'],[28,'Sandslash'],[29,'Nidoran♀'],[30,'Nidorina'],
+      [31,'Nidoqueen'],[32,'Nidoran♂'],[33,'Nidorino'],[34,'Nidoking'],[35,'Clefairy'],
+      [36,'Clefable'],[37,'Vulpix'],[38,'Ninetales'],[39,'Jigglypuff'],[40,'Wigglytuff'],
+      [41,'Zubat'],[42,'Golbat'],[43,'Oddish'],[44,'Gloom'],[45,'Vileplume'],
+      [46,'Paras'],[47,'Parasect'],[48,'Venonat'],[49,'Venomoth'],[50,'Diglett'],
+      [51,'Dugtrio'],[52,'Meowth'],[53,'Persian'],[54,'Psyduck'],[55,'Golduck'],
+      [56,'Mankey'],[57,'Primeape'],[58,'Growlithe'],[59,'Arcanine'],[60,'Poliwag'],
+      [61,'Poliwhirl'],[62,'Poliwrath'],[63,'Abra'],[64,'Kadabra'],[65,'Alakazam'],
+      [66,'Machop'],[67,'Machoke'],[68,'Machamp'],[69,'Bellsprout'],[70,'Weepinbell'],
+      [71,'Victreebel'],[72,'Tentacool'],[73,'Tentacruel'],[74,'Geodude'],[75,'Graveler'],
+      [76,'Golem'],[77,'Ponyta'],[78,'Rapidash'],[79,'Slowpoke'],[80,'Slowbro'],
+      [81,'Magnemite'],[82,'Magneton'],[83,"Farfetch'd"],[84,'Doduo'],[85,'Dodrio'],
+      [86,'Seel'],[87,'Dewgong'],[88,'Grimer'],[89,'Muk'],[90,'Shellder'],
+      [91,'Cloyster'],[92,'Gastly'],[93,'Haunter'],[94,'Gengar'],[95,'Onix'],
+      [96,'Drowzee'],[97,'Hypno'],[98,'Krabby'],[99,'Kingler'],[100,'Voltorb'],
+      [101,'Electrode'],[102,'Exeggcute'],[103,'Exeggutor'],[104,'Cubone'],[105,'Marowak'],
+      [106,'Hitmonlee'],[107,'Hitmonchan'],[108,'Lickitung'],[109,'Koffing'],[110,'Weezing'],
+      [111,'Rhyhorn'],[112,'Rhydon'],[113,'Chansey'],[114,'Tangela'],[115,'Kangaskhan'],
+      [116,'Horsea'],[117,'Seadra'],[118,'Goldeen'],[119,'Seaking'],[120,'Staryu'],
+      [121,'Starmie'],[122,'Mr. Mime'],[123,'Scyther'],[124,'Jynx'],[125,'Electabuzz'],
+      [126,'Magmar'],[127,'Pinsir'],[128,'Tauros'],[129,'Magikarp'],[130,'Gyarados'],
+      [131,'Lapras'],[132,'Ditto'],[133,'Eevee'],[134,'Vaporeon'],[135,'Jolteon'],
+      [136,'Flareon'],[137,'Porygon'],[138,'Omanyte'],[139,'Omastar'],[140,'Kabuto'],
+      [141,'Kabutops'],[142,'Aerodactyl'],[143,'Snorlax'],[144,'Articuno'],[145,'Zapdos'],
+      [146,'Moltres'],[147,'Dratini'],[148,'Dragonair'],[149,'Dragonite'],[150,'Mewtwo'],
+      [151,'Mew'],[808,'Meltan'],[809,'Melmetal'],
+    ],
+  },
+  bdsp: {
+    storageKey: 'bdsp-sinnoh-dex',
+    format: 'bdsp',
+    pokemon: [
+      [1,387,'Turtwig'],[2,388,'Grotle'],[3,389,'Torterra'],
+      [4,390,'Chimchar'],[5,391,'Monferno'],[6,392,'Infernape'],
+      [7,393,'Piplup'],[8,394,'Prinplup'],[9,395,'Empoleon'],
+      [10,396,'Starly'],[11,397,'Staravia'],[12,398,'Staraptor'],
+      [13,399,'Bidoof'],[14,400,'Bibarel'],
+      [15,401,'Kricketot'],[16,402,'Kricketune'],
+      [17,403,'Shinx'],[18,404,'Luxio'],[19,405,'Luxray'],
+      [20,63,'Abra'],[21,64,'Kadabra'],[22,65,'Alakazam'],
+      [23,129,'Magikarp'],[24,130,'Gyarados'],
+      [25,406,'Budew'],[26,315,'Roselia'],[27,407,'Roserade'],
+      [28,41,'Zubat'],[29,42,'Golbat'],[30,169,'Crobat'],
+      [31,74,'Geodude'],[32,75,'Graveler'],[33,76,'Golem'],
+      [34,95,'Onix'],[35,208,'Steelix'],
+      [36,408,'Cranidos'],[37,409,'Rampardos'],
+      [38,410,'Shieldon'],[39,411,'Bastiodon'],
+      [40,66,'Machop'],[41,67,'Machoke'],[42,68,'Machamp'],
+      [43,54,'Psyduck'],[44,55,'Golduck'],
+      [45,412,'Burmy'],[46,413,'Wormadam'],[47,414,'Mothim'],
+      [48,265,'Wurmple'],[49,266,'Silcoon'],[50,267,'Beautifly'],
+      [51,268,'Cascoon'],[52,269,'Dustox'],
+      [53,415,'Combee'],[54,416,'Vespiquen'],
+      [55,417,'Pachirisu'],
+      [56,418,'Buizel'],[57,419,'Floatzel'],
+      [58,420,'Cherubi'],[59,421,'Cherrim'],
+      [60,422,'Shellos'],[61,423,'Gastrodon'],
+      [62,214,'Heracross'],
+      [63,190,'Aipom'],[64,424,'Ambipom'],
+      [65,425,'Drifloon'],[66,426,'Drifblim'],
+      [67,427,'Buneary'],[68,428,'Lopunny'],
+      [69,92,'Gastly'],[70,93,'Haunter'],[71,94,'Gengar'],
+      [72,200,'Misdreavus'],[73,429,'Mismagius'],
+      [74,198,'Murkrow'],[75,430,'Honchkrow'],
+      [76,431,'Glameow'],[77,432,'Purugly'],
+      [78,434,'Stunky'],[79,435,'Skuntank'],
+      [80,307,'Meditite'],[81,308,'Medicham'],
+      [82,436,'Bronzor'],[83,437,'Bronzong'],
+      [84,77,'Ponyta'],[85,78,'Rapidash'],
+      [86,438,'Bonsly'],[87,185,'Sudowoodo'],
+      [88,439,'Mime Jr.'],[89,122,'Mr. Mime'],
+      [90,440,'Happiny'],[91,113,'Chansey'],[92,242,'Blissey'],
+      [93,173,'Cleffa'],[94,35,'Clefairy'],[95,36,'Clefable'],
+      [96,441,'Chatot'],
+      [97,172,'Pichu'],[98,25,'Pikachu'],[99,26,'Raichu'],
+      [100,163,'Hoothoot'],[101,164,'Noctowl'],
+      [102,442,'Spiritomb'],
+      [103,443,'Gible'],[104,444,'Gabite'],[105,445,'Garchomp'],
+      [106,446,'Munchlax'],[107,143,'Snorlax'],
+      [108,133,'Eevee'],[109,134,'Vaporeon'],[110,135,'Jolteon'],
+      [111,136,'Flareon'],[112,196,'Espeon'],[113,197,'Umbreon'],
+      [114,470,'Leafeon'],[115,471,'Glaceon'],
+      [116,175,'Togepi'],[117,176,'Togetic'],[118,468,'Togekiss'],
+      [119,228,'Houndour'],[120,229,'Houndoom'],
+      [121,215,'Sneasel'],[122,461,'Weavile'],
+      [123,361,'Snorunt'],[124,362,'Glalie'],[125,478,'Froslass'],
+      [126,447,'Riolu'],[127,448,'Lucario'],
+      [128,449,'Hippopotas'],[129,450,'Hippowdon'],
+      [130,451,'Skorupi'],[131,452,'Drapion'],
+      [132,453,'Croagunk'],[133,454,'Toxicroak'],
+      [134,455,'Carnivine'],
+      [135,456,'Finneon'],[136,457,'Lumineon'],
+      [137,458,'Mantyke'],[138,226,'Mantine'],
+      [139,459,'Snover'],[140,460,'Abomasnow'],
+      [141,479,'Rotom'],
+      [142,480,'Uxie'],[143,481,'Mesprit'],[144,482,'Azelf'],
+      [145,483,'Dialga'],[146,484,'Palkia'],
+      [147,485,'Heatran'],[148,486,'Regigigas'],
+      [149,487,'Giratina'],[150,488,'Cresselia'],
+      [151,490,'Manaphy'],
+    ],
+  },
+  lza: {
+    storageKey: 'lza-lumiose-dex',
+    format: 'lza',
+    pokemon: [
+      // BASE GAME
+      [152,'Chikorita'],[153,'Bayleef'],[154,'Meganium'],
+      [498,'Tepig'],[499,'Pignite'],[500,'Emboar'],
+      [158,'Totodile'],[159,'Croconaw'],[160,'Feraligatr'],
+      [661,'Fletchling'],[662,'Fletchinder'],[663,'Talonflame'],
+      [659,'Bunnelby'],[660,'Diggersby'],
+      [664,'Scatterbug'],[665,'Spewpa'],[666,'Vivillon'],
+      [13,'Weedle'],[14,'Kakuna'],[15,'Beedrill'],
+      [16,'Pidgey'],[17,'Pidgeotto'],[18,'Pidgeot'],
+      [179,'Mareep'],[180,'Flaaffy'],[181,'Ampharos'],
+      [504,'Patrat'],[505,'Watchog'],
+      [406,'Budew'],[315,'Roselia'],[407,'Roserade'],
+      [129,'Magikarp'],[130,'Gyarados'],
+      [688,'Binacle'],[689,'Barbaracle'],
+      [120,'Staryu'],[121,'Starmie'],
+      [669,'Flabébé'],[670,'Floette'],['floette-eternal','Eternal Floette',670],[671,'Florges'],
+      [672,'Skiddo'],[673,'Gogoat'],
+      [677,'Espurr'],[678,'Meowstic-M'],['meowstic-f','Meowstic-F',678],
+      [667,'Litleo'],[668,'Pyroar'],
+      [674,'Pancham'],[675,'Pangoro'],
+      [568,'Trubbish'],[569,'Garbodor'],
+      [702,'Dedenne'],
+      [172,'Pichu'],[25,'Pikachu'],[26,'Raichu'],['raichu-alola','Alolan Raichu',26],
+      [173,'Cleffa'],[35,'Clefairy'],[36,'Clefable'],
+      [167,'Spinarak'],[168,'Ariados'],
+      [23,'Ekans'],[24,'Arbok'],
+      [63,'Abra'],[64,'Kadabra'],[65,'Alakazam'],
+      [92,'Gastly'],[93,'Haunter'],[94,'Gengar'],
+      [543,'Venipede'],[544,'Whirlipede'],[545,'Scolipede'],
+      [679,'Honedge'],[680,'Doublade'],[681,'Aegislash'],
+      [69,'Bellsprout'],[70,'Weepinbell'],[71,'Victreebel'],
+      [511,'Pansage'],[512,'Simisage'],[513,'Pansear'],[514,'Simisear'],[515,'Panpour'],[516,'Simipour'],
+      [307,'Meditite'],[308,'Medicham'],
+      [309,'Electrike'],[310,'Manectric'],
+      [280,'Ralts'],[281,'Kirlia'],[282,'Gardevoir'],[475,'Gallade'],
+      [228,'Houndour'],[229,'Houndoom'],
+      [333,'Swablu'],[334,'Altaria'],
+      [531,'Audino'],
+      [682,'Spritzee'],[683,'Aromatisse'],
+      [684,'Swirlix'],[685,'Slurpuff'],
+      [133,'Eevee'],[134,'Vaporeon'],[135,'Jolteon'],[136,'Flareon'],
+      [196,'Espeon'],[197,'Umbreon'],[470,'Leafeon'],[471,'Glaceon'],[700,'Sylveon'],
+      [427,'Buneary'],[428,'Lopunny'],
+      [353,'Shuppet'],[354,'Banette'],
+      [582,'Vanillite'],[583,'Vanillish'],[584,'Vanilluxe'],
+      [322,'Numel'],[323,'Camerupt'],
+      [449,'Hippopotas'],[450,'Hippowdon'],
+      [529,'Drilbur'],[530,'Excadrill'],
+      [551,'Sandile'],[552,'Krokorok'],[553,'Krookodile'],
+      [66,'Machop'],[67,'Machoke'],[68,'Machamp'],
+      [443,'Gible'],[444,'Gabite'],[445,'Garchomp'],
+      [703,'Carbink'],
+      [302,'Sableye'],
+      [303,'Mawile'],
+      [359,'Absol'],
+      [447,'Riolu'],[448,'Lucario'],
+      [79,'Slowpoke'],['slowpoke-galar','Galarian Slowpoke',79],
+      [80,'Slowbro'],['slowbro-galar','Galarian Slowbro',80],
+      [199,'Slowking'],['slowking-galar','Galarian Slowking',199],
+      [318,'Carvanha'],[319,'Sharpedo'],
+      [602,'Tynamo'],[603,'Eelektrik'],[604,'Eelektross'],
+      [147,'Dratini'],[148,'Dragonair'],[149,'Dragonite'],
+      [1,'Bulbasaur'],[2,'Ivysaur'],[3,'Venusaur'],
+      [4,'Charmander'],[5,'Charmeleon'],[6,'Charizard'],
+      [7,'Squirtle'],[8,'Wartortle'],[9,'Blastoise'],
+      [618,'Stunfisk'],['stunfisk-galar','Galarian Stunfisk',618],
+      [676,'Furfrou'],
+      [686,'Inkay'],[687,'Malamar'],
+      [690,'Skrelp'],[691,'Dragalge'],
+      [692,'Clauncher'],[693,'Clawitzer'],
+      [704,'Goomy'],[705,'Sliggoo'],[706,'Goodra'],
+      [225,'Delibird'],
+      [361,'Snorunt'],[362,'Glalie'],[478,'Froslass'],
+      [459,'Snover'],[460,'Abomasnow'],
+      [712,'Bergmite'],[713,'Avalugg'],
+      [123,'Scyther'],[212,'Scizor'],
+      [127,'Pinsir'],
+      [214,'Heracross'],
+      [587,'Emolga'],
+      [701,'Hawlucha'],
+      [708,'Phantump'],[709,'Trevenant'],
+      [559,'Scraggy'],[560,'Scrafty'],
+      [714,'Noibat'],[715,'Noivern'],
+      [707,'Klefki'],
+      [607,'Litwick'],[608,'Lampent'],[609,'Chandelure'],
+      [142,'Aerodactyl'],
+      [696,'Tyrunt'],[697,'Tyrantrum'],
+      [698,'Amaura'],[699,'Aurorus'],
+      [95,'Onix'],[208,'Steelix'],
+      [304,'Aron'],[305,'Lairon'],[306,'Aggron'],
+      [694,'Helioptile'],[695,'Heliolisk'],
+      [710,'Pumpkaboo'],[711,'Gourgeist'],
+      [246,'Larvitar'],[247,'Pupitar'],[248,'Tyranitar'],
+      [656,'Froakie'],[657,'Frogadier'],[658,'Greninja'],
+      [870,'Falinks'],
+      [650,'Chespin'],[651,'Quilladin'],[652,'Chesnaught'],
+      [227,'Skarmory'],
+      [653,'Fennekin'],[654,'Braixen'],[655,'Delphox'],
+      [371,'Bagon'],[372,'Shelgon'],[373,'Salamence'],
+      [115,'Kangaskhan'],
+      [780,'Drampa'],
+      [374,'Beldum'],[375,'Metang'],[376,'Metagross'],
+      [716,'Xerneas'],[717,'Yveltal'],[718,'Zygarde'],[719,'Diancie'],[150,'Mewtwo'],
+      // DLC
+      [56,'Mankey'],[57,'Primeape'],[979,'Annihilape'],
+      [52,'Meowth'],['meowth-alola','Alolan Meowth',52],['meowth-galar','Galarian Meowth',52],
+      [53,'Persian'],['persian-alola','Alolan Persian',53],
+      [863,'Perrserker'],
+      [83,"Farfetch'd"],['farfetchd-galar',"Galarian Farfetch'd",83],
+      [865,"Sirfetch'd"],
+      [104,'Cubone'],[105,'Marowak'],['marowak-alola','Alolan Marowak',105],
+      [137,'Porygon'],[233,'Porygon2'],[474,'Porygon-Z'],
+      [951,'Capsakid'],[952,'Scovillain'],
+      [957,'Tinkatink'],[958,'Tinkatuff'],[959,'Tinkaton'],
+      [967,'Cyclizar'],
+      [969,'Glimmet'],[970,'Glimmora'],
+      [479,'Rotom'],
+      [971,'Greavard'],[972,'Houndstone'],
+      [769,'Sandygast'],[770,'Palossand'],
+      [352,'Kecleon'],
+      [973,'Flamigo'],
+      [615,'Cryogonal'],
+      [977,'Dondozo'],
+      [978,'Tatsugiri'],
+      [996,'Frigibax'],[997,'Arctibax'],[998,'Baxcalibur'],
+      [999,'Gimmighoul'],[1000,'Gholdengo'],
+      [211,'Qwilfish'],['qwilfish-hisui','Hisuian Qwilfish',211],[904,'Overqwil'],
+      [252,'Treecko'],[253,'Grovyle'],[254,'Sceptile'],
+      [255,'Torchic'],[256,'Combusken'],[257,'Blaziken'],
+      [258,'Mudkip'],[259,'Marshtomp'],[260,'Swampert'],
+      [349,'Feebas'],[350,'Milotic'],
+      [433,'Chingling'],[358,'Chimecho'],
+      [876,'Indeedee-F'],['indeedee-male','Indeedee-M',876],
+      [509,'Purrloin'],[510,'Liepard'],
+      [517,'Munna'],[518,'Musharna'],
+      [538,'Throh'],[539,'Sawk'],
+      [562,'Yamask'],['yamask-galar','Galarian Yamask',562],
+      [563,'Cofagrigus'],
+      [867,'Runerigus'],
+      [767,'Wimpod'],[768,'Golisopod'],
+      [827,'Nickit'],[828,'Thievul'],
+      [852,'Clobbopus'],[853,'Grapploct'],
+      [778,'Mimikyu'],
+      [900,'Kleavor'],
+      [877,'Morpeko'],
+      [622,'Golett'],[623,'Golurk'],
+      [821,'Rookidee'],[822,'Corvisquire'],[823,'Corviknight'],
+      [174,'Igglybuff'],[39,'Jigglypuff'],[40,'Wigglytuff'],
+      [926,'Fidough'],[927,'Dachsbun'],
+      [396,'Starly'],[397,'Staravia'],[398,'Staraptor'],
+      [325,'Spoink'],[326,'Grumpig'],
+      [931,'Squawkabilly'],
+      [739,'Crabrawler'],[740,'Crabominable'],
+      [932,'Nacli'],[933,'Naclstack'],[934,'Garganacl'],
+      [316,'Gulpin'],[317,'Swalot'],
+      [41,'Zubat'],[42,'Golbat'],[169,'Crobat'],
+      [935,'Charcadet'],[936,'Armarouge'],[937,'Ceruledge'],
+      [942,'Maschiff'],[943,'Mabosstiff'],
+      [848,'Toxel'],[849,'Toxtricity'],
+      [944,'Shroodle'],[945,'Grafaiai'],
+      [335,'Zangoose'],[336,'Seviper'],
+      [439,'Mime Jr.'],[122,'Mr. Mime'],['mr-mime-galar','Galarian Mr. Mime',122],[866,'Mr. Rime'],
+      [590,'Foongus'],[591,'Amoonguss'],
+      [485,'Heatran'],
+      [721,'Volcanion'],
+      [638,'Cobalion'],[639,'Terrakion'],[640,'Virizion'],
+      [647,'Keldeo'],
+      [648,'Meloetta'],
+      [649,'Genesect'],
+      [720,'Hoopa'],
+      [802,'Marshadow'],
+      [808,'Meltan'],[809,'Melmetal'],
+      [491,'Darkrai'],
+      [380,'Latias'],[381,'Latios'],
+      [382,'Kyogre'],[383,'Groudon'],[384,'Rayquaza'],
+      [801,'Magearna'],
+      [807,'Zeraora'],
+      // Hisuian forms
+      ['sliggoo-hisui','Hisuian Sliggoo',705],
+      ['goodra-hisui','Hisuian Goodra',706],
+      ['avalugg-hisui','Hisuian Avalugg',713],
+    ],
+  },
+};
+
+const DEX_KEY = 'pokemon-active-dex';
+let currentDex = localStorage.getItem(DEX_KEY) || 'lgp';
+let filter = 'all', query = '';
+
+for (const dex of Object.values(DEXES)) {
+  dex.caught = new Set(JSON.parse(localStorage.getItem(dex.storageKey) || '[]'));
+}
+
+const SPRITE = key => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${key}.png`;
+
+function entryParts(entry, format) {
+  if (format === 'bdsp') {
+    const [s, n, name] = entry;
+    return [s, name, n, s];
+  }
+  const [key, name, displayNum] = entry;
+  return [key, name, key, typeof key === 'number' ? key : (displayNum || 0)];
+}
+
+function updateProgress() {
+  const dex = DEXES[currentDex];
+  const total = dex.pokemon.length;
+  const n = dex.caught.size;
+  document.getElementById('progress-label').textContent = `${n} / ${total}`;
+  document.getElementById('progress-fill').style.width = `${(n / total) * 100}%`;
+}
+
+function render() {
+  const dex = DEXES[currentDex];
+  const grid = document.getElementById('grid');
+  const q = query.toLowerCase();
+  const visible = dex.pokemon.filter(entry => {
+    const [key, name] = entryParts(entry, dex.format);
+    if (q && !name.toLowerCase().includes(q) && !String(key).includes(q)) return false;
+    if (filter === 'caught' && !dex.caught.has(key)) return false;
+    if (filter === 'missing' && dex.caught.has(key)) return false;
+    return true;
+  });
+  if (!visible.length) { grid.innerHTML = '<div class="empty">No Pokémon match.</div>'; return; }
+  grid.innerHTML = '';
+  for (const entry of visible) {
+    const [key, name, spriteKey, displayNum] = entryParts(entry, dex.format);
+    const isCaught = dex.caught.has(key);
+    const card = document.createElement('div');
+    card.className = `card ${isCaught ? 'caught' : 'not-caught'}`;
+    card.dataset.id = key;
+    card.innerHTML = `
+      <span class="check">✓</span>
+      <img src="${SPRITE(spriteKey)}" alt="${name}" loading="lazy">
+      <div class="card-num">#${String(displayNum).padStart(3,'0')}</div>
+      <div class="card-name">${name}</div>
+    `;
+    card.addEventListener('click', () => toggle(key));
+    grid.appendChild(card);
+  }
+}
+
+function toggle(key) {
+  const dex = DEXES[currentDex];
+  dex.caught.has(key) ? dex.caught.delete(key) : dex.caught.add(key);
+  localStorage.setItem(dex.storageKey, JSON.stringify([...dex.caught]));
+  updateProgress();
+  const card = document.querySelector(`.card[data-id="${key}"]`);
+  if (!card) return;
+  if (filter !== 'all') {
+    card.remove();
+    if (!document.querySelector('#grid .card')) {
+      document.getElementById('grid').innerHTML = '<div class="empty">No Pokémon match.</div>';
+    }
+  } else {
+    card.className = `card ${dex.caught.has(key) ? 'caught' : 'not-caught'}`;
+  }
+}
+
+function switchDex(key) {
+  currentDex = key;
+  localStorage.setItem(DEX_KEY, key);
+  filter = 'all';
+  query = '';
+  document.getElementById('search').value = '';
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.dex === key));
+  updateProgress();
+  render();
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchDex(btn.dataset.dex)));
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    filter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  });
+});
+document.getElementById('search').addEventListener('input', e => { query = e.target.value; render(); });
+
+switchDex(currentDex);
+</script>
+</body>
+</html>
