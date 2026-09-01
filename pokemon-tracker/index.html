@@ -89,8 +89,8 @@
 </header>
 <main><div class="grid" id="grid"></div></main>
 <script>
-// LGP/LZA entries: [key, name] or [key, name, displayNum]
-// BDSP entries:    [sinnohNum, nationalNum, name]
+// LGP/LZA/Hyperspace entries: [key, name] or [key, name, displayNum, spriteId]
+// BDSP entries:                [sinnohNum, nationalNum, name]
 // Legends Z-A base game roster, reused by both the Legends Z-A tab and (minus box legendaries)
 // the Hyperspace tab, since almost everything here also spawns in Hyperspace Wild Zones.
 const LZA_BASE = [
@@ -199,12 +199,10 @@ const LZA_BASE = [
 ];
 // Box legendaries: the only base-game Pokémon that never appear in Hyperspace Wild Zones.
 const LZA_NON_HYPERSPACE_KEYS = new Set([716,717,718,719,150]);
-// Converts an LZA_BASE entry into the Hyperspace tab's [hyperspaceNum, key, name, spriteId] shape,
-// using the national dex number as the display number since these have no official Hyperspace dex slot.
-function toHyperspaceOverlap(entry) {
-  const [key, name, displayNum, spriteId] = entry;
-  const num = typeof key === 'number' ? key : displayNum;
-  return [num, key, name, spriteId];
+// National dex # for an 'lza'-format entry, used to sort the Hyperspace tab.
+function lzaSortNum(entry) {
+  const [key, , displayNum] = entry;
+  return typeof key === 'number' ? key : (displayNum || 0);
 }
 
 const DEXES = {
@@ -406,90 +404,88 @@ const DEXES = {
   },
   hza: {
     storageKey: 'lza-hyperspace-dex',
-    format: 'hza',
-    // Hyperspace Pokédex (Mega Dimension DLC): [hyperspaceNum, key, name]
+    format: 'lza',
+    // Hyperspace Pokédex (Mega Dimension DLC) exclusives, plus every LZA_BASE Pokémon that also
+    // spawns in Hyperspace Wild Zones (all of it except the box legendaries). No official Hyperspace
+    // dex slot is tracked here — everything is numbered and sorted by national dex # instead.
     pokemon: [
-      [1,56,'Mankey'],[2,57,'Primeape'],[3,979,'Annihilape'],
-      [4,52,'Meowth'],[4,'meowth-alola','Alolan Meowth',10107],[4,'meowth-galar','Galarian Meowth',10161],
-      [5,53,'Persian'],[5,'persian-alola','Alolan Persian',10108],
-      [6,863,'Perrserker'],
-      [7,83,"Farfetch'd"],[7,'farfetchd-galar',"Galarian Farfetch'd",10166],
-      [8,865,"Sirfetch'd"],
-      [9,104,'Cubone'],
-      [10,105,'Marowak'],[10,'marowak-alola','Alolan Marowak',10115],
-      [11,137,'Porygon'],[12,233,'Porygon2'],[13,474,'Porygon-Z'],
-      [14,951,'Capsakid'],[15,952,'Scovillain'],
-      [16,957,'Tinkatink'],[17,958,'Tinkatuff'],[18,959,'Tinkaton'],
-      [19,967,'Cyclizar'],
-      [20,969,'Glimmet'],[21,970,'Glimmora'],
-      [22,479,'Rotom'],
-      [23,971,'Greavard'],[24,972,'Houndstone'],
-      [25,769,'Sandygast'],[26,770,'Palossand'],
-      [27,352,'Kecleon'],
-      [28,973,'Flamigo'],
-      [29,615,'Cryogonal'],
-      [30,977,'Dondozo'],
-      [31,978,'Tatsugiri'],
-      [32,996,'Frigibax'],[33,997,'Arctibax'],[34,998,'Baxcalibur'],
-      [35,999,'Gimmighoul'],[36,1000,'Gholdengo'],
-      [37,211,'Qwilfish'],[37,'qwilfish-hisui','Hisuian Qwilfish',10234],[38,904,'Overqwil'],
-      [39,252,'Treecko'],[40,253,'Grovyle'],[41,254,'Sceptile'],
-      [42,255,'Torchic'],[43,256,'Combusken'],[44,257,'Blaziken'],
-      [45,258,'Mudkip'],[46,259,'Marshtomp'],[47,260,'Swampert'],
-      [48,349,'Feebas'],[49,350,'Milotic'],
-      [50,433,'Chingling'],[51,358,'Chimecho'],
-      [52,876,'Indeedee-M'],[52,'indeedee-female','Indeedee-F',10186],
-      [53,509,'Purrloin'],[54,510,'Liepard'],
-      [55,517,'Munna'],[56,518,'Musharna'],
-      [57,538,'Throh'],[58,539,'Sawk'],
-      [59,562,'Yamask'],[59,'yamask-galar','Galarian Yamask',10179],
-      [60,563,'Cofagrigus'],
-      [61,867,'Runerigus'],
-      [62,767,'Wimpod'],[63,768,'Golisopod'],
-      [64,827,'Nickit'],[65,828,'Thievul'],
-      [66,852,'Clobbopus'],[67,853,'Grapploct'],
-      [68,778,'Mimikyu'],
-      [69,900,'Kleavor'],
-      [70,877,'Morpeko'],
-      [71,622,'Golett'],[72,623,'Golurk'],
-      [73,821,'Rookidee'],[74,822,'Corvisquire'],[75,823,'Corviknight'],
-      [76,174,'Igglybuff'],[77,39,'Jigglypuff'],[78,40,'Wigglytuff'],
-      [79,926,'Fidough'],[80,927,'Dachsbun'],
-      [81,396,'Starly'],[82,397,'Staravia'],[83,398,'Staraptor'],
-      [84,325,'Spoink'],[85,326,'Grumpig'],
-      [86,931,'Squawkabilly'],
-      [87,739,'Crabrawler'],[88,740,'Crabominable'],
-      [89,932,'Nacli'],[90,933,'Naclstack'],[91,934,'Garganacl'],
-      [92,316,'Gulpin'],[93,317,'Swalot'],
-      [94,41,'Zubat'],[95,42,'Golbat'],[96,169,'Crobat'],
-      [97,935,'Charcadet'],[98,936,'Armarouge'],[99,937,'Ceruledge'],
-      [100,942,'Maschiff'],[101,943,'Mabosstiff'],
-      [102,848,'Toxel'],[103,849,'Toxtricity'],
-      [104,944,'Shroodle'],[105,945,'Grafaiai'],
-      [106,335,'Zangoose'],[107,336,'Seviper'],
-      [108,439,'Mime Jr.'],[109,122,'Mr. Mime'],[109,'mr-mime-galar','Galarian Mr. Mime',10168],[110,866,'Mr. Rime'],
-      [111,590,'Foongus'],[112,591,'Amoonguss'],
-      [113,485,'Heatran'],
-      [114,721,'Volcanion'],
-      [115,638,'Cobalion'],[116,639,'Terrakion'],[117,640,'Virizion'],
-      [118,647,'Keldeo'],
-      [119,648,'Meloetta'],
-      [120,649,'Genesect'],
-      [121,720,'Hoopa'],
-      [122,802,'Marshadow'],
-      [123,808,'Meltan'],[124,809,'Melmetal'],
-      [125,491,'Darkrai'],
-      [126,380,'Latias'],[127,381,'Latios'],
-      [128,382,'Kyogre'],[129,383,'Groudon'],[130,384,'Rayquaza'],
-      [131,801,'Magearna'],
-      [132,807,'Zeraora'],
-      // Base-dex Pokémon that also spawn in Hyperspace Wild Zones (no official Hyperspace dex slot,
-      // so these are numbered by national dex # instead). Everything from LZA_BASE qualifies except
-      // the box legendaries.
-      ...LZA_BASE
-        .filter(entry => !(typeof entry[0] === 'number' && LZA_NON_HYPERSPACE_KEYS.has(entry[0])))
-        .map(toHyperspaceOverlap),
-    ],
+      [56,'Mankey'],[57,'Primeape'],[979,'Annihilape'],
+      [52,'Meowth'],['meowth-alola','Alolan Meowth',52,10107],['meowth-galar','Galarian Meowth',52,10161],
+      [53,'Persian'],['persian-alola','Alolan Persian',53,10108],
+      [863,'Perrserker'],
+      [83,"Farfetch'd"],['farfetchd-galar',"Galarian Farfetch'd",83,10166],
+      [865,"Sirfetch'd"],
+      [104,'Cubone'],
+      [105,'Marowak'],['marowak-alola','Alolan Marowak',105,10115],
+      [137,'Porygon'],[233,'Porygon2'],[474,'Porygon-Z'],
+      [951,'Capsakid'],[952,'Scovillain'],
+      [957,'Tinkatink'],[958,'Tinkatuff'],[959,'Tinkaton'],
+      [967,'Cyclizar'],
+      [969,'Glimmet'],[970,'Glimmora'],
+      [479,'Rotom'],
+      [971,'Greavard'],[972,'Houndstone'],
+      [769,'Sandygast'],[770,'Palossand'],
+      [352,'Kecleon'],
+      [973,'Flamigo'],
+      [615,'Cryogonal'],
+      [977,'Dondozo'],
+      [978,'Tatsugiri'],
+      [996,'Frigibax'],[997,'Arctibax'],[998,'Baxcalibur'],
+      [999,'Gimmighoul'],[1000,'Gholdengo'],
+      [211,'Qwilfish'],['qwilfish-hisui','Hisuian Qwilfish',211,10234],[904,'Overqwil'],
+      [252,'Treecko'],[253,'Grovyle'],[254,'Sceptile'],
+      [255,'Torchic'],[256,'Combusken'],[257,'Blaziken'],
+      [258,'Mudkip'],[259,'Marshtomp'],[260,'Swampert'],
+      [349,'Feebas'],[350,'Milotic'],
+      [433,'Chingling'],[358,'Chimecho'],
+      [876,'Indeedee-M'],['indeedee-female','Indeedee-F',876,10186],
+      [509,'Purrloin'],[510,'Liepard'],
+      [517,'Munna'],[518,'Musharna'],
+      [538,'Throh'],[539,'Sawk'],
+      [562,'Yamask'],['yamask-galar','Galarian Yamask',562,10179],
+      [563,'Cofagrigus'],
+      [867,'Runerigus'],
+      [767,'Wimpod'],[768,'Golisopod'],
+      [827,'Nickit'],[828,'Thievul'],
+      [852,'Clobbopus'],[853,'Grapploct'],
+      [778,'Mimikyu'],
+      [900,'Kleavor'],
+      [877,'Morpeko'],
+      [622,'Golett'],[623,'Golurk'],
+      [821,'Rookidee'],[822,'Corvisquire'],[823,'Corviknight'],
+      [174,'Igglybuff'],[39,'Jigglypuff'],[40,'Wigglytuff'],
+      [926,'Fidough'],[927,'Dachsbun'],
+      [396,'Starly'],[397,'Staravia'],[398,'Staraptor'],
+      [325,'Spoink'],[326,'Grumpig'],
+      [931,'Squawkabilly'],
+      [739,'Crabrawler'],[740,'Crabominable'],
+      [932,'Nacli'],[933,'Naclstack'],[934,'Garganacl'],
+      [316,'Gulpin'],[317,'Swalot'],
+      [41,'Zubat'],[42,'Golbat'],[169,'Crobat'],
+      [935,'Charcadet'],[936,'Armarouge'],[937,'Ceruledge'],
+      [942,'Maschiff'],[943,'Mabosstiff'],
+      [848,'Toxel'],[849,'Toxtricity'],
+      [944,'Shroodle'],[945,'Grafaiai'],
+      [335,'Zangoose'],[336,'Seviper'],
+      [439,'Mime Jr.'],[122,'Mr. Mime'],['mr-mime-galar','Galarian Mr. Mime',122,10168],[866,'Mr. Rime'],
+      [590,'Foongus'],[591,'Amoonguss'],
+      [485,'Heatran'],
+      [721,'Volcanion'],
+      [638,'Cobalion'],[639,'Terrakion'],[640,'Virizion'],
+      [647,'Keldeo'],
+      [648,'Meloetta'],
+      [649,'Genesect'],
+      [720,'Hoopa'],
+      [802,'Marshadow'],
+      [808,'Meltan'],[809,'Melmetal'],
+      [491,'Darkrai'],
+      [380,'Latias'],[381,'Latios'],
+      [382,'Kyogre'],[383,'Groudon'],[384,'Rayquaza'],
+      [801,'Magearna'],
+      [807,'Zeraora'],
+      // Base-dex Pokémon that also spawn in Hyperspace Wild Zones.
+      ...LZA_BASE.filter(entry => !(typeof entry[0] === 'number' && LZA_NON_HYPERSPACE_KEYS.has(entry[0]))),
+    ].sort((a, b) => lzaSortNum(a) - lzaSortNum(b)),
   },
 };
 
@@ -507,10 +503,6 @@ function entryParts(entry, format) {
   if (format === 'bdsp') {
     const [s, n, name] = entry;
     return [s, name, n, s];
-  }
-  if (format === 'hza') {
-    const [num, key, name, spriteId] = entry;
-    return [key, name, spriteId || key, num];
   }
   const [key, name, displayNum, spriteId] = entry;
   return [key, name, spriteId || key, typeof key === 'number' ? key : (displayNum || 0)];
